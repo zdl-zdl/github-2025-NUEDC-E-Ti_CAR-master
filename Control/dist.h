@@ -8,8 +8,9 @@
 #define ENCODER_RESOLUTION (ENCODER_PPR * ENCODER_QUAD * MOTOR_REDUCTION_RATIO) // 默认13*2*20=520
 #define WHEEL_DIAMETER 0.065f		  // 轮子直径D = 65mm
 #define WHEEL_CIRCUMFERENCE (PI * WHEEL_DIAMETER)  // 轮子周长=PI*D
-#define WHEEL_DIST (WHEEL_CIRCUMFERENCE / ENCODER_RESOLUTION) // 轮子单脉冲前进距离
-															  // 3.1416*0.065/1040 ≈ 0.196 毫米/脉冲
+#define WHEEL_DIST (WHEEL_CIRCUMFERENCE / ENCODER_RESOLUTION) // 轮子单脉冲前进距离(mm)
+                                                              // = 3.1416*0.065/520 ≈ 0.3927 毫米/脉冲
+                                                              // 1m=1000mm ≈ 2546脉冲; TURN_DISTANCE=320mm ≈ 815脉冲
 
 
 void GetDistance(void);      // 直接获取一段距离

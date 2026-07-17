@@ -33,11 +33,18 @@
 
 int main(void)
 {
-	System_Init();
-	
-	while(1) 
-	{   
-		TaskSelect();
+	/* ===== 1m 正方形循迹 =====
+	 * 赛道：1m×1m 正方形黑线，4个直角拐角。
+	 * 流程：灰度循迹(TP)→检测拐角→90°定点转弯(TURN)→继续循迹，4个角后停车。
+	 * 参数在 App/utils.c 顶部（lap_num/task_num/debug_no_turn 等）。
+	 * TIMER_0(10ms)：测速 + PID_Select（循迹/转弯 PID 切换）
+	 * TIMER_1(10ms)：声光反馈 + DebugPrint（每 500ms 串口打印调试）
+	 */
+	System_Init();          // 时钟 + LED + 蜂鸣器 + 按键 + 编码器 + 定时器中断 + UART中断
+
+	while (1)
+	{
+		TaskSelect();        // 任务调度：根据 task_num 执行 FirstTask/SecondTask
 	}
 }
 
@@ -63,6 +70,7 @@ void TIMER_1_INST_IRQHandler(void)	// 声光检测  10ms  优先级高
 		{	
 			if (total_start_flag == 1 && wait_flag == 0) 	Wait_For_A_While();
 			SoundLightUpdate();
+			DebugPrint();
 		}
 	}
 }

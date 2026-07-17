@@ -57,7 +57,20 @@ int RightSpeedPidCtrl(int target, int current)
     return (int)right_pwm;
 }
 
-/***  转角环  ***/
+/***  转角环（90° 定点转弯）***
+ * 当前：左轮停(PWM=0)、右轮前进(offset+PID)，绕左轮 pivot 转
+ * 开环问题：①打滑导致编码器读数≠实际转角 ②速度不受控(目标20m/s不可达)
+ *
+ * 【改进建议】
+ * 方案A-差速转弯（减少打滑）：左轮反转+右轮正转，原地转
+ *   motor_left_dir=0; Motor_LeftCtrl(offset+fabs(left_pwm));
+ *   motor_right_dir=1; Motor_RightCtrl(offset+fabs(right_pwm));
+ *   注意：差速转弯 TURN_DISTANCE = 定点转弯的一半(轮距×π/4)
+ *
+ * 方案B-陀螺仪闭环（最精确）：用 yaw 角度做 PID 反馈
+ *   在 IsTurnComplete() 里用 gyro_yaw 判断（已预留，见 task.c）
+ *   转弯速度用 yaw 误差的 PD 控制，而非固定 offset
+ */
 void turn_90_control(int tar, int offset)
 {
 	float left_pwm = LeftSpeedPidCtrl(tar, left_speed);

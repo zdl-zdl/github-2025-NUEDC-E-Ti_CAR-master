@@ -17,5 +17,9 @@ extern uint8_t lap_num;
 extern uint8_t task_num;
 extern uint8_t total_start_flag;
 extern uint8_t wait_flag;
+extern uint8_t debug_no_turn;
+extern uint8_t debug_motor_stop;
+
+void DebugPrint(void);
 
 #endif

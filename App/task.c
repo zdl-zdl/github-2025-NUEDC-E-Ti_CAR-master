@@ -9,6 +9,50 @@ uint8_t corner_cnt = 0;	 // 路段/拐角计次
 uint16_t bias = 0;	// 转角环补偿值
 float basespeed = 0;	// 行驶速度
 
+/* ===== 陀螺仪转弯预留 =====
+ * turn_mode=TURN_ENCODER : 编码器开环（当前），靠距离判断
+ * turn_mode=TURN_GYRO    : 陀螺仪闭环（后续），靠 yaw 角度判断
+ * 接入陀螺仪后：在定时器中断里更新 gyro_yaw，把 turn_mode 改成 TURN_GYRO
+ */
+TurnMode_e turn_mode = TURN_ENCODER;  // 默认编码器开环
+float gyro_yaw = 0.0f;                 // 陀螺仪 yaw（后续接入后在定时器中断更新）
+float turn_target_yaw = 90.0f;        // 转弯目标角度（转弯开始时设为 gyro_yaw+90）
+
+/*
+ * @brief 转弯完成判断
+ * @note  编码器模式：右轮距离 >= TURN_DISTANCE
+ *        陀螺仪模式：yaw 误差 < 3° 死区
+ *        后续接入陀螺仪后把 turn_mode 改成 TURN_GYRO 即可切换
+ */
+static uint8_t IsTurnComplete(void)
+{
+	if(turn_mode == TURN_GYRO)
+	{
+		/* 陀螺仪闭环：yaw 达到目标角度停止 */
+		float err = turn_target_yaw - gyro_yaw;
+		/* 角度环绕处理（-180~180） */
+		if(err > 180.0f)  err -= 360.0f;
+		if(err < -180.0f) err += 360.0f;
+		return (fabs(err) <= 3.0f);  /* 3° 死区 */
+	}
+	else
+	{
+		/* 编码器开环：距离达到 TURN_DISTANCE 停止 */
+		return (fabs(carR_dis) >= TURN_DISTANCE);
+	}
+}
+
+/*
+ * @brief 进入转弯时调用，记录转弯目标
+ * @note  编码器模式：清零距离
+ *        陀螺仪模式：记录目标 yaw = 当前 yaw + 90°
+ */
+static void Turn_Start(void)
+{
+	ClearDistance();
+	turn_target_yaw = gyro_yaw + 90.0f;  /* 目标转 90°（右转） */
+}
+
 static void Task_Reset(void)
 {
 	task_num = 0;
@@ -94,12 +138,12 @@ void FirstTask(void)
 			break;
 
 		case 1:
-			if(lap_count >= lap_num)
+			if(lap_count >= lap_num && !debug_no_turn)
 			{
 				if(!turn_flag)  // 首次进入转弯阶段
 				{
 					turn_flag = 1;
-					ClearDistance();  // 清除累计编码器距离
+					Turn_Start();  // 清零距离 + 记录目标yaw
 				}
 
 				GetDistance();  // 实时更新距离
@@ -107,8 +151,8 @@ void FirstTask(void)
 				basespeed = 20;
 				pid_flag = TURN_90_PID;
 
-				// 距离判断是否完成90度转弯
-				if(fabs(carR_dis) >= TURN_DISTANCE)
+				// 转弯完成判断（编码器/陀螺仪自动切换）
+				if(IsTurnComplete())
 				{
 					Motor_Stop();
 					Task_Reset();
@@ -123,10 +167,10 @@ void FirstTask(void)
 				Track_DetectCorner();
 				pid_flag = TRACK_PID;
 
-				if(corner_detected)
+				if(corner_detected && !debug_no_turn)
 				{
 					turn_flag = 1;
-					ClearDistance();  // 进入拐角转弯，也清零距离
+					Turn_Start();  // 进入拐角转弯
 				}
 			}
 			else  // 拐角转弯阶段
@@ -136,7 +180,7 @@ void FirstTask(void)
 				bias = 190;
 				basespeed = 20;
 
-				if(fabs(carR_dis) >= TURN_DISTANCE)
+				if(IsTurnComplete())
 				{
 					corner_detected = 0;
 					turn_flag = 0;
@@ -162,7 +206,7 @@ void SecondTask(void)
 			break;
 
 		case 1:
-			if(lap_count >= lap_num)  // 圈数达成，直接停车
+			if(lap_count >= lap_num && !debug_no_turn)  // 圈数达成，直接停车
 			{
 				Motor_Stop();          
 				Task_Reset();    
@@ -176,10 +220,10 @@ void SecondTask(void)
 				Track_DetectCorner();
 				pid_flag = TRACK_PID;
 
-				if(corner_detected)
+				if(corner_detected && !debug_no_turn)
 				{
 					turn_flag = 1;
-					ClearDistance();  // 进入拐角转弯，也清零距离
+					Turn_Start();  // 进入拐角转弯
 				}
 			}
 			else  // 拐角转弯阶段
@@ -189,7 +233,7 @@ void SecondTask(void)
 				bias = 190;
 				basespeed = 20;
 
-				if(fabs(carR_dis) >= TURN_DISTANCE)
+				if(IsTurnComplete())
 				{
 					corner_detected = 0;
 					turn_flag = 0;

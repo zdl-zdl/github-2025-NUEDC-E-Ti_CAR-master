@@ -18,6 +18,7 @@ void Motor_RightDuty(uint8_t motor_left_dir, uint32_t speed);
 void Motor_LeftCtrl(float speed);
 void Motor_RightCtrl(float speed);
 void Motor_Stop(void);
+void Motor_Test(void);
 
 extern uint8_t motor_left_dir;
 extern uint8_t motor_right_dir;
